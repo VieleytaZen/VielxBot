@@ -50,37 +50,35 @@ export default {
             let success = 0;
 
             for (let participant of participants) {
-                let jid = participant.id;
+    let jid = participant.id;
 
-                // 1. Filter: Bukan diri sendiri
-                const isMe = jid.includes(sock.user.id.split(':')[0]);
-                if (isMe) continue;
+    // Filter diri sendiri
+    const isMe = jid.includes(sock.user.id.split(':')[0]);
+    if (isMe) continue;
 
-                // --- DATABASE BYPASS ---
-                // Pengecekan if (!db.isPushed(jid)) dihapus agar bot pasti mengirim pesan
-                try {
-                    // Fitur Spintax
-                    const finalMsg = pesan.replace(/{([^{}]+)}/g, (m, o) => {
-                        const choices = o.split('|');
-                        return choices[Math.floor(Math.random() * choices.length)];
-                    });
+    try {
+        // --- PROSES KIRIM PESAN ---
+        const finalMsg = pesan.replace(/{([^{}]+)}/g, (m, o) => {
+            const choices = o.split('|');
+            return choices[Math.floor(Math.random() * choices.length)];
+        });
 
-                    await sock.sendMessage(jid, { text: finalMsg });
-                    
-                    // Kita tetap simpan ke DB agar data kontak masuk untuk keperluan ekspor nanti
-                    db.addContact(jid);
-                    
-                    success++;
-                    console.log(`✅ Berhasil mengirim ke: ${jid}`);
+        await sock.sendMessage(jid, { text: finalMsg });
 
-                    // Delay acak agar lebih aman (3 - 6 detik)
-                    const wait = Math.floor(Math.random() * 3000) + 3000;
-                    await delay(wait); 
+        // --- LOGIKA SIMPAN KE DB (NOMOR + LID) ---
+        // Kita simpan JID apa adanya ke database
+        // Jika JID mengandung @lid, dia tersimpan sebagai LID
+        // Jika mengandung @s.whatsapp.net, dia tersimpan sebagai nomor biasa
+        db.addContact(jid); 
 
-                } catch (e) {
-                    console.log(`❌ Gagal kirim ke ${jid}:`, e.message);
-                }
-            }
+        success++;
+        console.log(`✅ Berhasil: ${jid}`);
+
+        await delay(3000); 
+    } catch (e) {
+        console.log(`❌ Gagal: ${jid}`);
+    }
+}
 
             await sock.sendMessage(from, { 
                 text: `✅ *Push Selesai!*\n\nBerhasil kirim ke: ${success} nomor.\nGrup: ${metadata.subject}` 
