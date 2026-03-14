@@ -3,7 +3,7 @@
 const config = {
     // --- INFORMASI OWNER ---
     ownerNumber: "6282133692292", // Nomor kamu (tanpa @s.whatsapp.net)
-    ownerLid: "83227876290608", // Linked Identify WhatsApp
+    ownerLid: "83227876290608", // Jalankan dan cek lid di console, lalu masukkan di sini (tanpa @g.us)
     ownerName: "Kii",
     
     // --- PENGATURAN BOT ---
