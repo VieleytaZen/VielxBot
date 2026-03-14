@@ -21,11 +21,14 @@ export default {
         const phoneCount = pushed.filter(jid => jid.includes('@s.whatsapp.net')).length;
         const phonePercent = totalPushed > 0 ? ((phoneCount / totalPushed) * 100).toFixed(1) : 0;
 
-        // Menyusun laporan yang digabung
+        const todayCount = db.getTodayCount();
+        const maxLimit = config.maxPushDay || 200;
+
         let laporan = `📊 *STATISTIK BOT PUSH*\n\n`;
         laporan += `┌  ─── [ *INFO BOT* ]\n`;
         laporan += `│ 👤 *Owner:* ${config.ownerName}\n`;
         laporan += `│ 🤖 *Bot Name:* ${config.botName}\n`;
+        laporan += `│ 🛡️ *Limit Hari Ini:* ${todayCount} / ${maxLimit}\n`; // Tampilkan di sini
         laporan += `│ ⏳ *Delay:* ${config.delay.min / 1000}s - ${config.delay.max / 1000}s\n`;
         laporan += `└  ───\n\n`;
 
