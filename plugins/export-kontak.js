@@ -1,58 +1,51 @@
-import fs from 'fs';
+// plugins/export-kontak.js
 import { db } from '../database.js';
+import fs from 'fs';
 
 export default {
-    command: ['.export', '.getnew'],
+    command: ['.vcf', '.exportvcf'],
     run: async (sock, msg, args, config) => {
         const from = msg.key.remoteJid;
-        const sender = msg.key.participant || msg.key.remoteJid || "";
-        const isOwner = sender.includes(config.ownerNumber) || sender.includes(config.ownerLid);
-
-        if (!isOwner) return;
-
         const data = db.read();
-        // Fallback jika database belum ada isinya
-        const pushedContacts = data.pushedContacts || [];
-        const exportedList = data.exportedContacts || [];
+        const contacts = data.pushedContacts || [];
 
-        // Ambil nomor yang belum diekspor
-        const newContacts = pushedContacts.filter(jid => !exportedList.includes(jid));
+        if (contacts.length === 0) return sock.sendMessage(from, { text: "⚠️ Database kosong!" });
 
-        if (newContacts.length === 0) {
-            return sock.sendMessage(from, { text: "⚠️ Database kosong atau semua nomor sudah pernah diekspor sebelumnya." }, { quoted: msg });
-        }
-
-        // Paksa ke VCF untuk auto-save
-        const fileName = `./Export_Kontak_${Date.now()}.vcf`;
-
-        let vcardData = "";
-        newContacts.forEach((jid, index) => {
-            // Pembersihan ID agar murni angka
-            const num = jid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
-            if (num.length > 5) { // Validasi nomor minimal
-                vcardData += `BEGIN:VCARD\nVERSION:3.0\nFN:PushByVielx ${index + 1}\nTEL;type=CELL;waid=${num}:+${num}\nEND:VCARD\n`;
+        let vcfContent = "";
+        
+        contacts.forEach((jid, index) => {
+            const isLid = jid.includes('@lid');
+            // Mengambil ID (baik itu nomor 628xxx atau ID LID 102xxx)
+            const idOnly = jid.split('@')[0].split(':')[0];
+            
+            // Nama urut agar rapi di kontak
+            const contactName = `Push ${index + 1} ${isLid ? '[LID]' : ''}`;
+            
+            vcfContent += `BEGIN:VCARD\n`;
+            vcfContent += `VERSION:3.0\n`;
+            vcfContent += `FN:${contactName}\n`;
+            
+            if (isLid) {
+                // Jika LID, simpan sebagai ID WhatsApp khusus
+                vcfContent += `TEL;TYPE=CELL;waid=${idOnly}:+${idOnly}\n`;
+            } else {
+                // Jika nomor biasa
+                vcfContent += `TEL;TYPE=CELL:+${idOnly}\n`;
             }
+            
+            vcfContent += `END:VCARD\n`;
         });
 
-        // Pastikan vcardData tidak kosong
-        if (!vcardData) {
-            return sock.sendMessage(from, { text: "❌ Gagal membuat data kontak. Format ID di database mungkin tidak valid." });
-        }
+        const fileName = './Hasil_Export.vcf';
+        fs.writeFileSync(fileName, vcfContent);
 
-        fs.writeFileSync(fileName, vcardData);
-
-        // KIRIM DENGAN MIME-TYPE CONTACT (BUKAN DOCUMENT BIASA)
         await sock.sendMessage(from, { 
             document: fs.readFileSync(fileName), 
-            fileName: `Kontak_Baru_${newContacts.length}.vcf`,
-            mimetype: 'text/vcard', // INI KUNCINYA AGAR TIDAK JADI PDF
-            caption: `✅ *Berhasil Ekspor*\n\nTotal: ${newContacts.length} Nomor\n\n_Klik file di atas -> Buka dengan Kontak -> Simpan._`
+            fileName: `Kontak_Vielx_${contacts.length}.vcf`,
+            mimetype: 'text/vcard',
+            caption: `✅ *Export Selesai*\n\nTotal: ${contacts.length} kontak.\n\n_Tips: Klik file ini, pilih "Buka dengan Kontak", lalu simpan. Kamu bisa langsung chat mereka via WhatsApp._`
         }, { quoted: msg });
 
-        // Tandai sudah diekspor
-        newContacts.forEach(jid => db.markAsExported(jid));
-        
-        // Hapus file setelah dikirim
-        setTimeout(() => { if (fs.existsSync(fileName)) fs.unlinkSync(fileName) }, 2000);
+        fs.unlinkSync(fileName);
     }
 };
