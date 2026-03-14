@@ -15,6 +15,10 @@ const config = {
         min: 7000,                  // Jeda minimal (7 detik)
         max: 15000                  // Jeda maksimal (15 detik)
     },
+
+    // --- SOSIAL MEDIA & TAMPILAN ---
+    instagramUrl: "https://instagram.com/username_kamu", // Ganti dengan link IG kamu
+    thumbnailUrl: "https://telegra.ph/file/241f71128399589d13695.jpg", // Ganti dengan link foto/logo bot
     
     // --- KEAMANAN & LIMIT ---
     // Atur limit sesuai "umur" nomor kamu (Saran: 50 untuk nomor baru, 200 untuk nomor lama)
