@@ -1,3 +1,4 @@
+// plugins/push-kontak.js
 import { db } from '../database.js';
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -6,36 +7,69 @@ export default {
     command: ['.push', '.jpm'], // Trigger perintah
     run: async (sock, msg, args, config) => {
         const from = msg.key.remoteJid;
-        const isOwner = from.split('@')[0] === config.ownerNumber;
 
-        if (!isOwner) return sock.sendMessage(from, { text: "❌ Fitur ini hanya untuk Owner!" });
-        if (!args) return sock.sendMessage(from, { text: "Contoh: .push {Halo|Hai} kak" });
+        // 1. Ambil ID pengirim asli (baik di grup maupun pribadi)
+        const sender = msg.key.participant || msg.key.remoteJid;
+        
+        // 2. Cek apakah ID tersebut mengandung nomor owner dari config
+        const isOwner = sender.includes(config.ownerNumber);
 
-        await sock.sendMessage(from, { text: config.msgWait });
+        if (!isOwner) {
+            return sock.sendMessage(from, { text: "❌ Fitur ini hanya untuk Owner!" }, { quoted: msg });
+        }
 
-        const groups = await sock.groupFetchAllParticipating();
-        const allGroups = Object.values(groups);
+        // 3. Validasi argumen pesan
+        if (!args) {
+            return sock.sendMessage(from, { text: "⚠️ *Gunakan:* .push {Halo|Hai} kak, salken ya." });
+        }
 
-        for (let group of allGroups) {
-            for (let participant of group.participants) {
-                const jid = participant.id;
-                if (jid !== sock.user.id && jid.endsWith('@s.whatsapp.net') && !db.isPushed(jid)) {
-                    try {
-                        // Fitur spintax sederhana
-                        const finalMsg = args.replace(/{([^{}]+)}/g, (m, o) => {
-                            const c = o.split('|');
-                            return c[Math.floor(Math.random() * c.length)];
-                        });
+        // 4. Kirim pesan tunggu (Loading)
+        await sock.sendMessage(from, { text: config.msgWait || "🚀 Sedang memproses push kontak ke seluruh grup..." });
 
-                        await sock.sendMessage(jid, { text: finalMsg });
-                        db.addContact(jid);
+        try {
+            // 5. Ambil semua grup yang bot ikuti
+            const groups = await sock.groupFetchAllParticipating();
+            const allGroups = Object.values(groups);
 
-                        const wait = Math.floor(Math.random() * (config.delay.max - config.delay.min)) + config.delay.min;
-                        await delay(wait);
-                    } catch (e) { console.log(e); }
+            let totalPushed = 0;
+
+            for (let group of allGroups) {
+                console.log(`📂 Memproses grup: ${group.subject}`);
+                
+                for (let participant of group.participants) {
+                    const jid = participant.id;
+
+                    // 6. Filter: Bukan bot sendiri, nomor pribadi (bukan grup/newsletter), dan belum di-push
+                    if (jid !== sock.user.id && jid.endsWith('@s.whatsapp.net') && !db.isPushed(jid)) {
+                        try {
+                            // Proses Spintax {Halo|Hai}
+                            const finalMsg = args.replace(/{([^{}]+)}/g, (m, o) => {
+                                const choices = o.split('|');
+                                return choices[Math.floor(Math.random() * choices.length)];
+                            });
+
+                            await sock.sendMessage(jid, { text: finalMsg });
+                            db.addContact(jid); // Simpan ke database
+                            totalPushed++;
+
+                            // Delay acak sesuai config
+                            const wait = Math.floor(Math.random() * (config.delay.max - config.delay.min)) + config.delay.min;
+                            await delay(wait);
+                        } catch (e) { 
+                            console.log(`Gagal kirim ke ${jid}`); 
+                        }
+                    }
                 }
             }
+
+            // 7. Selesai
+            await sock.sendMessage(from, { 
+                text: `${config.msgDone || "✅ Push Selesai!"}\n\nTotal nomor baru yang dichat: ${totalPushed}` 
+            });
+
+        } catch (err) {
+            console.error(err);
+            await sock.sendMessage(from, { text: "❌ Terjadi kesalahan saat mengambil data grup." });
         }
-        await sock.sendMessage(from, { text: config.msgDone });
     }
 };

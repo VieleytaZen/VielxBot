@@ -1,4 +1,4 @@
-
+// plugins/list-id-group.js
 export default {
     command: ['.listid', '.cekgc'],
     run: async (sock, msg, args, config) => {

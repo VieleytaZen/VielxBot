@@ -1,4 +1,4 @@
-//buat export kontak yang sudah di push tapi belum pernah di ekspor, dengan format .export [vcf/txt]
+// plugins/export-kontak.js
 import fs from 'fs';
 import { db } from '../database.js';
 
@@ -6,22 +6,32 @@ export default {
     command: ['.export', '.getnew'],
     run: async (sock, msg, args, config) => {
         const from = msg.key.remoteJid;
-        const isOwner = from.split('@')[0] === config.ownerNumber;
+        
+        // 1. Logika Pengecekan Owner yang diperbaiki
+        const sender = msg.key.participant || msg.key.remoteJid;
+        const isOwner = sender.includes(config.ownerNumber);
 
-        if (!isOwner) return;
+        if (!isOwner) {
+            return sock.sendMessage(from, { text: "❌ Fitur ini hanya untuk Owner!" }, { quoted: msg });
+        }
 
+        // 2. Ambil data dari database
         const data = db.read();
         
         // FILTER: Ambil nomor yang sudah di-push tapi BELUM pernah di-ekspor
-        const newContacts = data.pushedContacts.filter(jid => !data.exportedContacts.includes(jid));
+        // Pastikan exportedContacts sudah diinisialisasi di database.json (seperti instruksi sebelumnya)
+        const exportedList = data.exportedContacts || [];
+        const newContacts = data.pushedContacts.filter(jid => !exportedList.includes(jid));
 
         if (newContacts.length === 0) {
-            return sock.sendMessage(from, { text: "⚠️ Tidak ada nomor baru untuk diekspor." });
+            return sock.sendMessage(from, { text: "⚠️ Tidak ada nomor baru untuk diekspor." }, { quoted: msg });
         }
 
+        // 3. Tentukan tipe file (Default TXT jika tidak diisi)
         const type = args.toLowerCase() === 'vcf' ? 'vcf' : 'txt';
         const fileName = `./new_contacts_${Date.now()}.${type}`;
 
+        // 4. Proses pembuatan file
         if (type === 'vcf') {
             let vcardData = "";
             newContacts.forEach((jid, index) => {
@@ -34,16 +44,17 @@ export default {
             fs.writeFileSync(fileName, txtData);
         }
 
-        // Kirim File
+        // 5. Kirim File ke user
         await sock.sendMessage(from, { 
             document: fs.readFileSync(fileName), 
             fileName: `Data_Baru_${newContacts.length}.${type}`,
-            caption: `✅ Berhasil ekspor ${newContacts.length} nomor baru.\nNomor ini tidak akan muncul lagi di ekspor berikutnya.`
+            caption: `✅ Berhasil ekspor ${newContacts.length} nomor baru.\n\nNomor ini otomatis ditandai dan tidak akan muncul lagi di ekspor berikutnya.`
         }, { quoted: msg });
 
-        // TANDAI: Masukkan nomor-nomor tadi ke daftar exportedContacts
+        // 6. TANDAI: Masukkan nomor-nomor tadi ke daftar exportedContacts di database
         newContacts.forEach(jid => db.markAsExported(jid));
 
+        // 7. Hapus file sampah di server
         fs.unlinkSync(fileName);
     }
 };

@@ -1,4 +1,4 @@
-// plugins/reset.js
+// plugins/reset-pushkontak.js
 import { db } from '../database.js';
 
 export default {
@@ -6,33 +6,36 @@ export default {
     run: async (sock, msg, args, config) => {
         const from = msg.key.remoteJid;
         
-        // 1. Keamanan: Cek apakah pengirim adalah owner
-        const isOwner = from.split('@')[0] === config.ownerNumber;
-        if (!isOwner) return;
+        // 1. Logika Keamanan Owner (Mendukung di Grup & Pribadi)
+        const sender = msg.key.participant || msg.key.remoteJid;
+        const isOwner = sender.includes(config.ownerNumber);
+
+        if (!isOwner) {
+            return sock.sendMessage(from, { text: "❌ Fitur ini hanya untuk Owner!" }, { quoted: msg });
+        }
 
         // 2. Mengambil argumen (misal: export)
         const type = args.toLowerCase().trim();
 
         if (type === 'export') {
-            // Memanggil fungsi yang kita letakkan di database.js tadi
+            // Memanggil fungsi dari database.js
             db.clearExport();
             
             await sock.sendMessage(from, { 
-                text: "✅ *Riwayat Ekspor Berhasil Direset!*\n\nSekarang jika kamu mengetik `.export`, bot akan mengambil semua nomor dari database (bukan cuma yang baru)." 
+                text: "✅ *Riwayat Ekspor Berhasil Direset!*\n\nSekarang perintah `.export` akan mengambil seluruh nomor yang ada di database dari awal lagi (tidak hanya nomor baru)." 
             }, { quoted: msg });
 
         } else if (type === 'all') {
-            // Opsi tambahan jika kamu ingin mengosongkan semuanya (opsional)
-            // Kamu bisa buat fungsi db.clearAll() di database.js jika butuh ini
+            // Pengamanan agar database utama tidak terhapus tidak sengaja
             await sock.sendMessage(from, { 
-                text: "⚠️ Fitur reset total dinonaktifkan demi keamanan. Gunakan `.reset export` saja." 
-            });
+                text: "⚠️ Fitur reset total dinonaktifkan demi keamanan.\n\nGunakan perintah: *.reset export*" 
+            }, { quoted: msg });
 
         } else {
-            // Pesan bantuan jika user hanya mengetik .reset tanpa argumen
+            // Pesan bantuan jika user salah ketik atau tanpa argumen
             const helpText = `❓ *Cara Menggunakan Reset*:\n\n` +
-                             `Gunakan command: *.reset export*\n\n` +
-                             `_Fungsi ini akan membuat semua nomor yang sudah pernah diekspor sebelumnya bisa diekspor kembali._`;
+                             `Ketik: *.reset export*\n\n` +
+                             `_Fungsi: Menghapus tanda 'sudah diekspor' sehingga semua nomor di database bisa didownload ulang._`;
             
             await sock.sendMessage(from, { text: helpText }, { quoted: msg });
         }
