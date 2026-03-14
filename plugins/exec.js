@@ -1,40 +1,31 @@
 // plugins/exec.js
 import { exec } from 'child_process';
-
 export default {
-    command: ['$', '=>', 'exec'], // Trigger bisa pakai simbol $ atau kata exec
+    // Ubah command agar diawali titik sesuai index.js kamu
+    command: ['.shell', '.$', '.exec'], 
     run: async (sock, msg, args, config) => {
         const from = msg.key.remoteJid;
 
-        // 1. KEAMANAN SUPER KETAT (Wajib Owner)
+        // 1. KEAMANAN OWNER (WAJIB)
         const sender = msg.key.participant || msg.key.remoteJid || "";
         const isOwner = sender.includes(config.ownerNumber) || sender.includes(config.ownerLid);
 
-        if (!isOwner) return; // Abaikan jika bukan owner
+        if (!isOwner) return; 
 
-        // 2. Validasi Perintah
-        if (!args) return sock.sendMessage(from, { text: "Masukkan perintah terminalnya, Bos!" });
+        // 2. Validasi
+        if (!args) return sock.sendMessage(from, { text: "Contoh: .$ ls" });
 
-        // 3. Proses Eksekusi Command
-        // Contoh penggunaan: $ ls atau $ pm2 status
+        // 3. Eksekusi
         exec(args, (error, stdout, stderr) => {
             if (error) {
-                // Jika ada error saat menjalankan perintah
-                return sock.sendMessage(from, { 
-                    text: `❌ *ERROR*\n\n\`\`\`${error.message}\`\`\`` 
-                }, { quoted: msg });
+                return sock.sendMessage(from, { text: `❌ *ERROR*\n\`\`\`${error.message}\`\`\`` });
             }
             if (stderr) {
-                // Jika ada error dari sistem terminal
-                return sock.sendMessage(from, { 
-                    text: `⚠️ *STDERR*\n\n\`\`\`${stderr}\`\`\`` 
-                }, { quoted: msg });
+                return sock.sendMessage(from, { text: `⚠️ *STDERR*\n\`\`\`${stderr}\`\`\`` });
             }
             
-            // 4. Kirim Output Berhasil
-            // Menggunakan format monospace (```) agar rapi seperti di terminal asli
             sock.sendMessage(from, { 
-                text: `💻 *TERMINAL OUTPUT*\n\n\`\`\`${stdout}\`\`\`` 
+                text: `💻 *TERMINAL*\n\n\`\`\`${stdout}\`\`\`` 
             }, { quoted: msg });
         });
     }
