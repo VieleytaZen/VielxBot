@@ -1,11 +1,8 @@
-// database.js
 import fs from 'fs';
 import path from 'path';
 
-// Menggunakan path absolute agar tidak error saat di-import dari folder plugins
 const DB_PATH = path.join(process.cwd(), 'database.json');
 
-// Inisialisasi file jika belum ada
 if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({ 
         pushedContacts: [], 
@@ -14,7 +11,6 @@ if (!fs.existsSync(DB_PATH)) {
 }
 
 export const db = {
-    // Fungsi internal untuk menulis data
     _write(data) {
         fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
     },
@@ -28,6 +24,7 @@ export const db = {
     },
     
     addContact(jid) {
+        if (!jid) return;
         const data = this.read();
         if (!data.pushedContacts.includes(jid)) {
             data.pushedContacts.push(jid);
@@ -35,30 +32,15 @@ export const db = {
         }
     },
 
-    markAsExported(jid) {
+    updateLidToNumber(lid, realJid) {
         const data = this.read();
-        if (!data.exportedContacts.includes(jid)) {
-            data.exportedContacts.push(jid);
+        const index = data.pushedContacts.indexOf(lid);
+        if (index !== -1 && lid !== realJid) {
+            data.pushedContacts[index] = realJid;
             this._write(data);
+            console.log(`\x1b[32m[DB UPDATE] LID ${lid} -> ${realJid}\x1b[0m`);
+            return true;
         }
-    },
-
-    isPushed(jid) {
-        return this.read().pushedContacts.includes(jid);
-    },
-
-    clearExport() {
-        const data = this.read();
-        data.exportedContacts = [];
-        this._write(data);
-        return true;
-    },
-
-    // Tambahan: Untuk mengosongkan semua daftar push
-    resetPushed() {
-        const data = this.read();
-        data.pushedContacts = [];
-        this._write(data);
-        return true;
+        return false;
     }
 };
