@@ -3,6 +3,7 @@
 const config = {
     // --- INFORMASI OWNER ---
     ownerNumber: "6282133692292", // Nomor kamu (tanpa @s.whatsapp.net)
+    ownerLid: "83227876290608", // Linked Identify WhatsApp
     ownerName: "Kii",
     
     // --- PENGATURAN BOT ---
