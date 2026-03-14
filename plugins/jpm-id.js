@@ -49,8 +49,9 @@ for (let participant of participants) {
     let jid = participant.id;
 
     // 1. FILTER: Hanya ambil yang berakhiran @s.whatsapp.net (Nomor Asli)
+    
     // Abaikan yang berakhiran @lid
-    if (jid.includes('@lid')) continue; 
+    // if (jid.includes('@lid')) continue; 
 
     // 2. Filter: Bukan diri sendiri
     const isMe = jid.includes(sock.user.id.split(':')[0]);
