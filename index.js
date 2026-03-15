@@ -46,7 +46,7 @@ async function startBot() {
             let reason = new Boom(lastDisconnect?.error)?.output.statusCode;
             if (reason !== DisconnectReason.loggedOut) startBot();
         } else if (connection === 'open') {
-            console.log('\x1b[32m[✅] BOT CONNECTED\x1b[0m');
+            console.log('\n\x1b[32m[✅] BOT CONNECTED\x1b[0m');
         }
     });
 
@@ -67,9 +67,25 @@ async function startBot() {
                 }
             }
 
-            // --- GET BODY ---
-            let body = (m.message.conversation || m.message.extendedTextMessage?.text || m.message.imageMessage?.caption || m.message.videoMessage?.caption || "").trim();
+            // --- GET BODY (DIBENAHI AGAR LEBIH AKURAT) ---
+            let body = (
+                m.message.conversation || 
+                m.message.extendedTextMessage?.text || 
+                m.message.imageMessage?.caption || 
+                m.message.videoMessage?.caption || 
+                m.message.templateButtonReplyMessage?.selectedId || 
+                m.message.buttonsResponseMessage?.selectedButtonId || 
+                m.message.viewOnceMessageV2?.message?.imageMessage?.caption || 
+                m.message.viewOnceMessageV2?.message?.videoMessage?.caption || 
+                ""
+            ).trim();
 
+            // Log pesan masuk agar terlihat di terminal
+            if (body) {
+                console.log(`📩 Pesan: [${body}] | Dari: ${sender}`);
+            }
+
+            // --- FILTER PREFIX ---
             if (!body.startsWith('.') && !body.startsWith('$')) return;
 
             let command, args;
@@ -86,16 +102,22 @@ async function startBot() {
             const pluginFiles = fs.readdirSync(pluginFolder).filter(file => file.endsWith('.js'));
 
             for (const file of pluginFiles) {
-                const pluginPath = pathToFileURL(path.join(pluginFolder, file)).href;
-                const imported = await import(`${pluginPath}?v=${Date.now()}`);
-                const plugin = imported.default || imported;
+                try {
+                    const pluginPath = pathToFileURL(path.join(pluginFolder, file)).href;
+                    // Gunakan update=Date.now agar file plugin yang di-edit langsung terbaca
+                    const imported = await import(`${pluginPath}?update=${Date.now()}`);
+                    const plugin = imported.default || imported;
 
-                if (plugin.command && plugin.command.includes(command)) {
-                    await plugin.run(sock, m, args, config);
-                    return;
+                    if (plugin.command && plugin.command.includes(command)) {
+                        console.log(`⚡ Exec: ${file} [${command}]`);
+                        await plugin.run(sock, m, args, config);
+                        return;
+                    }
+                } catch (err) {
+                    console.error(`❌ Error pada plugin ${file}:`, err.message);
                 }
             }
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("[Error Upsert]:", e); }
     });
 }
 
