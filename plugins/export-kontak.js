@@ -20,7 +20,7 @@ export default {
         let vcfContent = "";
         
         contacts.forEach((jid, index) => {
-            // Logika deteksi yang lebih ketat
+            // Logika deteksi
             const isLid = jid.includes('@lid');
             const isRealNumber = jid.includes('@s.whatsapp.net');
             
@@ -30,7 +30,7 @@ export default {
             // Penamaan Kontak
             let contactName;
             if (isRealNumber) {
-                contactName = `Push ${index + 1}`; // Nomor asli tanpa label [LID]
+                contactName = `Push ${index + 1}`;
             } else {
                 contactName = `Push ${index + 1} [LID]`;
             }
@@ -39,11 +39,10 @@ export default {
             vcfContent += `VERSION:3.0\n`;
             vcfContent += `FN:${contactName}\n`;
             
+            // Perbaikan Typo: Menggunakan vcfContent yang konsisten
             if (isLid && !isRealNumber) {
-                // Jika MURNI LID (tidak mengandung @s.whatsapp.net)
-                vcardContent += `TEL;TYPE=CELL;waid=${idOnly}:+${idOnly}\n`;
+                vcfContent += `TEL;TYPE=CELL;waid=${idOnly}:+${idOnly}\n`;
             } else {
-                // Jika nomor asli ATAU LID yang sudah ter-update jadi nomor
                 vcfContent += `TEL;TYPE=CELL;waid=${idOnly}:+${idOnly}\n`;
             }
             
@@ -53,13 +52,17 @@ export default {
         const fileName = './Hasil_Export.vcf';
         fs.writeFileSync(fileName, vcfContent);
 
-        await sock.sendMessage(from, { 
-            document: fs.readFileSync(fileName), 
-            fileName: `Kontak_Vielx_${contacts.length}.vcf`,
-            mimetype: 'text/vcard',
-            caption: `✅ *Export Selesai*\n\nTotal: ${contacts.length} kontak.\n\n_Catatan: Jika nomor sudah asli, label [LID] akan hilang otomatis._`
-        }, { quoted: msg });
+        try {
+            await sock.sendMessage(from, { 
+                document: fs.readFileSync(fileName), 
+                fileName: `Kontak_Vielx_${contacts.length}.vcf`,
+                mimetype: 'text/vcard',
+                caption: `✅ *Export Selesai*\n\nTotal: ${contacts.length} kontak.\n\n_Catatan: Jika nomor asli, label [LID] akan hilang._`
+            }, { quoted: msg });
+        } catch (e) {
+            console.error("Gagal kirim VCF:", e);
+        }
 
-        fs.unlinkSync(fileName);
+        if (fs.existsSync(fileName)) fs.unlinkSync(fileName);
     }
 };
