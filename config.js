@@ -1,8 +1,13 @@
 // config.js
 
 const config = {
-    // Masukkan SEMUA ID yang muncul saat bot menolak perintah
+    // --- KEAMANAN (MASUKKAN SEMUA ID DI SINI) ---
+    // Gunakan ini untuk cek izin akses fitur (isOwner)
     owners: ["6282133692292", "83227876290608", "101352772509932"], 
+
+    // --- INFORMASI KONTAK (HANYA NOMOR HP ASLI) ---
+    // Gunakan ini untuk fitur .owner / owner info
+    ownerNumber: "6282133692292", 
     ownerName: "Kii",
     
     // --- PENGATURAN BOT ---
