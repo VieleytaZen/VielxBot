@@ -15,49 +15,37 @@ export default {
         const data = db.read();
         const contacts = data.pushedContacts || [];
 
-        if (contacts.length === 0) return sock.sendMessage(from, { text: "⚠️ Database kosong!" });
+        // 2. FILTER: Hanya ambil yang mengandung '@s.whatsapp.net' (Nomor Asli)
+        const realNumbers = contacts.filter(jid => jid.includes('@s.whatsapp.net'));
+
+        if (realNumbers.length === 0) {
+            return sock.sendMessage(from, { 
+                text: "⚠️ *Gagal Export*\n\nBelum ada nomor asli di database. Saat ini semua masih berupa ID LID. Tunggu sampai mereka membalas chat bot agar ID-nya berubah menjadi nomor asli." 
+            }, { quoted: msg });
+        }
 
         let vcfContent = "";
         
-        contacts.forEach((jid, index) => {
-            // Logika deteksi
-            const isLid = jid.includes('@lid');
-            const isRealNumber = jid.includes('@s.whatsapp.net');
-            
-            // Ambil ID murni (hanya angka)
-            const idOnly = jid.split('@')[0].split(':')[0].replace(/\D/g, '');
-            
-            // Penamaan Kontak
-            let contactName;
-            if (isRealNumber) {
-                contactName = `Push ${index + 1}`;
-            } else {
-                contactName = `Push ${index + 1} [LID]`;
-            }
+        realNumbers.forEach((jid, index) => {
+            // Ambil nomor murni (angka saja)
+            const phoneNumber = jid.split('@')[0].split(':')[0].replace(/\D/g, '');
             
             vcfContent += `BEGIN:VCARD\n`;
             vcfContent += `VERSION:3.0\n`;
-            vcfContent += `FN:${contactName}\n`;
-            
-            // Perbaikan Typo: Menggunakan vcfContent yang konsisten
-            if (isLid && !isRealNumber) {
-                vcfContent += `TEL;TYPE=CELL;waid=${idOnly}:+${idOnly}\n`;
-            } else {
-                vcfContent += `TEL;TYPE=CELL;waid=${idOnly}:+${idOnly}\n`;
-            }
-            
+            vcfContent += `FN:Push ${index + 1}\n`; // Nama bersih tanpa label [LID]
+            vcfContent += `TEL;TYPE=CELL;waid=${phoneNumber}:+${phoneNumber}\n`;
             vcfContent += `END:VCARD\n`;
         });
 
-        const fileName = './Hasil_Export.vcf';
+        const fileName = `./Kontak_Real_${realNumbers.length}.vcf`;
         fs.writeFileSync(fileName, vcfContent);
 
         try {
             await sock.sendMessage(from, { 
                 document: fs.readFileSync(fileName), 
-                fileName: `Kontak_Vielx_${contacts.length}.vcf`,
+                fileName: `Kontak_Vielx_Real_${realNumbers.length}.vcf`,
                 mimetype: 'text/vcard',
-                caption: `✅ *Export Selesai*\n\nTotal: ${contacts.length} kontak.\n\n_Catatan: Jika nomor asli, label [LID] akan hilang._`
+                caption: `✅ *Export Selesai*\n\nTotal: ${realNumbers.length} nomor asli.\n_(ID LID diabaikan agar kontak HP bersih)_`
             }, { quoted: msg });
         } catch (e) {
             console.error("Gagal kirim VCF:", e);
