@@ -1,1 +1,0 @@
-Script ini masih proses
